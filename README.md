@@ -15,8 +15,8 @@ A high-performance, cross-platform log shipping solution written in C. It monito
 
 ## Architecture
 
-1.  **Client (Log Agent):** Watches the file system. When a change is detected, it reads new lines from `.log` files and pushes them via TCP.
-2.  **Server (Log Collector):** Subscribes to the stream and outputs formatted logs to `stdout`.
+1.  **Log Agent:** Watches the file system. When a change is detected, it reads new lines from `.log` files and pushes them via TCP.
+2.  **Log Collector:** Subscribes to the stream and outputs formatted logs to `stdout`.
 
 ## Prerequisites
 
@@ -32,3 +32,10 @@ A high-performance, cross-platform log shipping solution written in C. It monito
 ```bash
 # Build and start services
 docker-compose up --build
+```
+
+## Using
+```bash
+./log_agent /app/logs "tcp://127.0.0.1:5555" "[%%T] testing.%%L: %%M"
+./log_collector "tcp://127.0.0.1:5555"
+```

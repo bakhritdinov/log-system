@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +29,7 @@
 #define MAX_PATH_LEN 1024
 #define BUFFER_SIZE 4096
 #define FILTER_EXT ".log"
+#define MAX_LEVEL_LEN 32
 
 typedef struct FileNode {
     char path[MAX_PATH_LEN];
@@ -38,11 +40,10 @@ typedef struct FileNode {
 FileNode *head = NULL;
 
 void get_timestamp(char *buffer, size_t size) {
-    time_t rawtime;
-    struct tm *timeinfo;
-    time(&rawtime);
-    timeinfo = localtime(&rawtime);
-    strftime(buffer, size, "[%Y-%m-%d %H:%M:%S]", timeinfo);
+    time_t raw_time;
+    time(&raw_time);
+    const struct tm* time_info = localtime(&raw_time);
+    strftime(buffer, size, "[%Y-%m-%d %H:%M:%S]", time_info);
 }
 
 FileNode* find_or_create_node(const char *path) {
@@ -59,7 +60,105 @@ FileNode* find_or_create_node(const char *path) {
     return node;
 }
 
-void process_file(const char *path, void *pusher) {
+int parse_by_format(const char *line, const char *format, char *buffer, const size_t size) {
+    const char *level_spec = strstr(format, "%L");
+    if (!level_spec) {
+        strncpy(buffer, "UNKNOWN", size);
+        return 0;
+    }
+
+    const char *pre_literal_start = level_spec - 1;
+    while (pre_literal_start > format &&
+           (*(pre_literal_start - 1) != ']' && *(pre_literal_start - 1) != '[' &&
+            *(pre_literal_start - 1) != '%' && *(pre_literal_start - 1) != ' ')) {
+        pre_literal_start--;
+    }
+
+    if (pre_literal_start >= format && *pre_literal_start != '%') {
+        pre_literal_start = pre_literal_start;
+    } else {
+        pre_literal_start = format;
+    }
+
+    const size_t prefix_len_in_format = level_spec - pre_literal_start;
+    char prefix[256];
+    strncpy(prefix, pre_literal_start, prefix_len_in_format);
+    prefix[prefix_len_in_format] = '\0';
+
+    const char *p_in = prefix;
+    char *p_out = prefix;
+    while (*p_in) {
+        if (*p_in == '%') {
+            p_in += 2;
+        } else {
+            *p_out++ = *p_in++;
+        }
+    }
+    *p_out = '\0';
+
+    const char *line_start;
+    if (strlen(prefix) == 0) {
+        line_start = line;
+    } else {
+        const char *temp = line;
+        line_start = NULL;
+        while ((temp = strstr(temp, prefix)) != NULL) {
+            line_start = temp;
+            temp++;
+        }
+
+        if (!line_start) {
+            strncpy(buffer, "UNKNOWN", size);
+            return 0;
+        }
+        line_start += strlen(prefix);
+    }
+
+    const char *post_spec = level_spec + 2;
+
+    while (*post_spec && *post_spec == '%') {
+        post_spec += 2;
+    }
+
+    if (*post_spec == '\0') {
+        strncpy(buffer, line_start, size);
+        buffer[size - 1] = '\0';
+    } else {
+        const char *line_end = strchr(line_start, *post_spec);
+
+        if (!line_end) {
+            strncpy(buffer, line_start, size);
+            buffer[size - 1] = '\0';
+        } else {
+            const size_t level_len = line_end - line_start;
+            if (level_len > 0 && level_len < size) {
+                strncpy(buffer, line_start, level_len);
+                buffer[level_len] = '\0';
+            } else {
+                strncpy(buffer, "UNKNOWN", size);
+                return 0;
+            }
+        }
+    }
+
+    char *end = buffer + strlen(buffer) - 1;
+    while(end >= buffer && (*end == ' ' || *end == '\r' || *end == '\n')) end--;
+    *(end + 1) = '\0';
+
+    const char *start = buffer;
+    while(*start == ' ') start++;
+    if (start != buffer) {
+        memmove(buffer, start, strlen(start) + 1);
+    }
+
+    for (char *p = buffer; *p; p++) {
+        *p = toupper(*p);
+    }
+
+    return 1;
+}
+
+void process_file(const char *path, void *pusher, const char *log_format) {
     if (!strstr(path, FILTER_EXT)) return;
 
     FILE *fp = fopen(path, "r");
@@ -70,27 +169,24 @@ void process_file(const char *path, void *pusher) {
     fseek(fp, 0, SEEK_END);
     long current_size = ftell(fp);
 
-    // Log rotation detection
     if (current_size < node->offset) node->offset = 0;
 
     if (current_size > node->offset) {
         fseek(fp, node->offset, SEEK_SET);
         char line[BUFFER_SIZE];
-        char time_buf[64];
+        char log_level[MAX_LEVEL_LEN];
 
         while (fgets(line, sizeof(line), fp)) {
             line[strcspn(line, "\n")] = 0;
             if (strlen(line) == 0) continue;
 
-            get_timestamp(time_buf, sizeof(time_buf));
+            parse_by_format(line, log_format, log_level, sizeof(log_level));
 
+            zmq_send(pusher, log_level, strlen(log_level), ZMQ_SNDMORE);
             zmq_send(pusher, path, strlen(path), ZMQ_SNDMORE);
+            zmq_send(pusher, line, strlen(line), 0);
 
-            char formatted_msg[BUFFER_SIZE + 128];
-            snprintf(formatted_msg, sizeof(formatted_msg), "%s >> %s", time_buf, line);
-            zmq_send(pusher, formatted_msg, strlen(formatted_msg), 0);
-
-            printf("Sent: %s\n", path);
+            printf("Sent [%s]: %s\n", log_level, path);
         }
         node->offset = ftell(fp);
     }
@@ -98,7 +194,7 @@ void process_file(const char *path, void *pusher) {
 }
 
 #if defined(_WIN32)
-void scan_directory(const char *base_path, void *pusher) {
+void scan_directory(const char *base_path, void *pusher, const char *log_format) {
     char search_path[MAX_PATH_LEN];
     snprintf(search_path, sizeof(search_path), "%s\\*", base_path);
 
@@ -115,16 +211,16 @@ void scan_directory(const char *base_path, void *pusher) {
         snprintf(full_path, sizeof(full_path), "%s\\%s", base_path, find_data.cFileName);
 
         if (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            scan_directory(full_path, pusher);
+            scan_directory(full_path, pusher, log_format);
         } else {
-            process_file(full_path, pusher);
+            process_file(full_path, pusher, log_format);
         }
     } while (FindNextFile(hFind, &find_data) != 0);
 
     FindClose(hFind);
 }
 #else
-void scan_directory(const char *base_path, void *pusher) {
+void scan_directory(const char *base_path, void *pusher, const char *log_format) {
     DIR *dir;
     struct dirent *entry;
     char path[MAX_PATH_LEN];
@@ -137,13 +233,13 @@ void scan_directory(const char *base_path, void *pusher) {
 
         snprintf(path, sizeof(path), "%s/%s", base_path, entry->d_name);
 
-        struct stat statbuf;
-        if (stat(path, &statbuf) != 0) continue;
+        struct stat stat_buf;
+        if (stat(path, &stat_buf) != 0) continue;
 
-        if (S_ISDIR(statbuf.st_mode)) {
-            scan_directory(path, pusher);
+        if (S_ISDIR(stat_buf.st_mode)) {
+            scan_directory(path, pusher, log_format);
         } else {
-            process_file(path, pusher);
+            process_file(path, pusher, log_format);
         }
     }
     closedir(dir);
@@ -153,16 +249,16 @@ void scan_directory(const char *base_path, void *pusher) {
 void wait_for_changes(const char *path) {
 #if defined(__linux__)
     // --- LINUX INOTIFY ---
-    int fd = inotify_init();
+    const int fd = inotify_init();
     if (fd < 0) { perror("inotify_init"); SLEEP(1000); return; }
 
-    int wd = inotify_add_watch(fd, path, IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVED_TO);
+    const int wd = inotify_add_watch(fd, path, IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVED_TO);
 
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(fd, &fds);
 
-    struct timeval timeout = {1, 0}; // 1 sec timeout (fallback)
+    struct timeval timeout = {1, 0};
 
     select(fd + 1, &fds, NULL, NULL, &timeout);
 
@@ -210,20 +306,22 @@ void wait_for_changes(const char *path) {
 #endif
 }
 
-
-int main(int argc, char *argv[]) {
-    if (argc < 3) {
-        printf("Usage: %s <directory> <server_addr>\n", argv[0]);
+int main(const int argc, char *argv[]) {
+    if (argc < 4) {
+        printf("Usage: %s <directory> <server_addr> <log_format>\n", argv[0]);
+        printf("Example (Monolog): %s /var/log tcp://127.0.0.1:5555 \"[%%T] PROJECT.%%L: %%M\"\n", argv[0]);
+        printf("Example (Simple Log):      %s /var/log tcp://127.0.0.1:5555 \"%%T [%%L] %%M\"\n", argv[0]);
         return 1;
     }
 
     const char *watch_dir = argv[1];
     const char *server_addr = argv[2];
+    const char *log_format = argv[3];
 
     void *context = zmq_ctx_new();
     void *pusher = zmq_socket(context, ZMQ_PUB);
 
-    int linger = 0;
+    const int linger = 0;
     zmq_setsockopt(pusher, ZMQ_LINGER, &linger, sizeof(linger));
 
     if (zmq_connect(pusher, server_addr) != 0) {
@@ -241,11 +339,11 @@ int main(int argc, char *argv[]) {
         printf("Windows (ReadDirectoryChanges)\n");
     #endif
 
-    scan_directory(watch_dir, pusher);
+    scan_directory(watch_dir, pusher, log_format);
 
     while (1) {
         wait_for_changes(watch_dir);
-        scan_directory(watch_dir, pusher);
+        scan_directory(watch_dir, pusher, log_format);
     }
 
     zmq_close(pusher);

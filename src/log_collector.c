@@ -54,7 +54,7 @@ void setup_console() {
 #endif
 }
 
-int main(int argc, char *argv[]) {
+int main(const int argc, char *argv[]) {
     if (argc < 2) {
         printf("Usage: %s <server_addr>\n", argv[0]);
         return 1;
