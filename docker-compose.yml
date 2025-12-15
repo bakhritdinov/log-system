@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  dev-toolchain:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - .:/app
+    command: [ "/bin/bash", "-c", "sleep infinity" ]
+    container_name: dev-toolchain
+
+  server:
+    build:
+      context: .
+      target: server-image
+    ports:
+      - "5555:5555"
+    networks:
+      - lognet
+
+  client:
+    build:
+      context: .
+      target: client-image
+    depends_on:
+      - server
+    volumes:
+      # Монтируем папку logs в контейнер
+      - ./logs:/watch_logs
+    # Аргументы: <папка_для_слежки> <адрес_сервера>
+    command: ["/watch_logs", "tcp://server:5555"]
+    networks:
+      - lognet
+
+networks:
+  lognet:
+    driver: bridge

@@ -1,0 +1,18 @@
+FROM alpine:latest
+
+RUN apk update && \
+    apk add --no-cache \
+    gcc g++ \
+    musl-dev \
+    cmake \
+    make \
+    zeromq-dev \
+    pkgconf \
+    # Утилиты, полезные для отладки и работы в контейнере
+    bash \
+    git \
+    vim
+
+WORKDIR /app
+
+CMD ["/bin/bash"]
