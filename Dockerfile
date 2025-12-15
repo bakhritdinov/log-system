@@ -9,15 +9,15 @@ RUN mkdir build && cd build && \
     cmake .. && \
     make
 
-FROM alpine:latest AS client-image
+FROM alpine:latest AS log-agent-image
 RUN apk add --no-cache libzmq
 WORKDIR /app
-COPY --from=builder /app/build/client .
-ENTRYPOINT ["./client"]
+COPY --from=builder /app/build/log_agent .
+ENTRYPOINT ["./log_agent"]
 
-FROM alpine:latest AS server-image
+FROM alpine:latest AS log-collector-image
 RUN apk add --no-cache libzmq
 WORKDIR /app
-COPY --from=builder /app/build/server .
+COPY --from=builder /app/build/log_collector .
 EXPOSE 5555
-ENTRYPOINT ["./server"]
+ENTRYPOINT ["./log_collector"]

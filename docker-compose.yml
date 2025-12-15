@@ -10,29 +10,27 @@ services:
     command: [ "/bin/bash", "-c", "sleep infinity" ]
     container_name: dev-toolchain
 
-  server:
+  log-collector:
     build:
       context: .
-      target: server-image
+      target: log-collector-image
     ports:
       - "5555:5555"
     networks:
-      - lognet
+      - log_net
 
-  client:
+  log-agent:
     build:
       context: .
-      target: client-image
+      target: log-agent-image
     depends_on:
       - server
     volumes:
-      # Монтируем папку logs в контейнер
       - ./logs:/watch_logs
-    # Аргументы: <папка_для_слежки> <адрес_сервера>
     command: ["/watch_logs", "tcp://server:5555"]
     networks:
-      - lognet
+      - log_net
 
 networks:
-  lognet:
+  log_net:
     driver: bridge

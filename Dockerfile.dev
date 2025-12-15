@@ -8,7 +8,6 @@ RUN apk update && \
     make \
     zeromq-dev \
     pkgconf \
-    # Утилиты, полезные для отладки и работы в контейнере
     bash \
     git \
     vim
