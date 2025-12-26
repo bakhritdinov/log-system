@@ -1,3 +1,5 @@
+[![C/C++ CI](https://github.com/bakhritdinov/log-system/actions/workflows/ci.yml/badge.svg)](https://github.com/bakhritdinov/log-system/actions/workflows/ci.yml)
+
 # Real-Time Log Shipper (C + ZeroMQ)
 
 A high-performance, minimalist log shipping solution written in C. Designed for ultra-low overhead, it monitors directory structures and streams raw log data to a central collector.
@@ -29,4 +31,5 @@ A high-performance, minimalist log shipping solution written in C. Designed for 
    
 2. **Start Agent:**
    ```bash
+
     ./log_agent /var/log/my_app tcp://127.0.0.1:5555
