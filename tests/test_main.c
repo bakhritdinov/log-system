@@ -1,5 +1,5 @@
-#include "unity.h"
 #include "../src/log_agent_internal.h"
+#include "unity.h"
 
 extern void test_RecordCreation(void);
 extern void test_RecordLookupEfficiency(void);

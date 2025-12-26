@@ -9,11 +9,11 @@ typedef struct {
     UT_hash_handle hh;
 } FileRecord;
 
-extern FileRecord *files;
+extern FileRecord* files;
 
-FileRecord* get_file_record(const char *path);
+FileRecord* get_file_record(const char* path);
 
 void cleanup_records();
-void process_file(const char *path, void *pusher);
+void process_file(const char* path, void* pusher);
 
 #endif

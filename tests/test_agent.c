@@ -1,5 +1,5 @@
-#include "unity.h"
 #include "../src/log_agent_internal.h"
+#include "unity.h"
 
 void test_RecordCreation(void) {
     const FileRecord* r = get_file_record("/var/log/test.log");
