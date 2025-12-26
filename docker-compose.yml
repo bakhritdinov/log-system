@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   dev-toolchain:
     build:
@@ -23,8 +21,6 @@ services:
     build:
       context: .
       target: log-agent-image
-    depends_on:
-      - server
     volumes:
       - ./logs:/watch_logs
     command: ["/watch_logs", "tcp://server:5555"]
