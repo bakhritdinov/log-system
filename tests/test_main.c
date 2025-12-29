@@ -3,6 +3,7 @@
 
 extern void test_RecordCreation(void);
 extern void test_RecordLookupEfficiency(void);
+extern void test_FreshModeTailOffset(void);
 extern void test_LogRotationHandling(void);
 extern void test_ColorSelection(void);
 extern void test_EmptyLineHandling(void);
@@ -20,6 +21,7 @@ int main(void) {
 
     RUN_TEST(test_RecordCreation);
     RUN_TEST(test_RecordLookupEfficiency);
+    RUN_TEST(test_FreshModeTailOffset);
     RUN_TEST(test_LogRotationHandling);
 
     RUN_TEST(test_ColorSelection);

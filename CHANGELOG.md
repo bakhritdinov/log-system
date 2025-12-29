@@ -1,6 +1,14 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.2.0] - 2025-12-29
+### Added
+- **Configuration Context Pattern:** Replaced global variables with an `AgentConfig` structure for better thread-safety and testability.
+- **Fresh Start Mode:** Added `--fresh` CLI flag to skip existing file content (tail mode), preventing massive data spikes on startup with large log files.
+- **Cross-Platform Tail Logic:** Implemented "jump-to-end" logic for both Windows and Linux file handlers.
+
+### Fixed
+- Improved `cleanup_records` to prevent memory leaks during repeated test execution in Unity.
+- Standardized pointer alignment and code style across all C files.
 
 ## [1.1.0] - 2025-12-26
 ### Added
@@ -11,16 +19,10 @@ All notable changes to this project will be documented in this file.
 
 ### Optimized
 - **Architecture Shift:** Moved log parsing logic from Agent to Collector. The Agent now ships raw lines, significantly reducing its CPU footprint.
-- **Linux Core:** Optimized `inotify` loop to process events in batches using a dedicated buffer.
+- **Linux Core:** Optimized `inotify` loop to process events in batches.
 - **Protocol:** Simplified ZeroMQ messaging to a 2-frame protocol `[Path][Line]`.
-
-### Fixed
-- Fixed a potential buffer overflow in string copying using safer `strncpy` patterns.
-- Resolved an issue in Docker Compose where the agent would fail to resolve the collector's hostname.
 
 ## [1.0.0] - 2025-12-20
 ### Added
-- Initial release of the Log Shipper.
-- Basic support for Linux (inotify), macOS (kqueue), and Windows.
+- Initial release with basic support for Linux, macOS, and Windows.
 - PUB/SUB implementation using ZeroMQ.
-- Basic recursive directory scanning.
