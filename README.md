@@ -30,6 +30,10 @@ A high-performance, cross-platform log shipping solution written in C. It monito
    ```bash
    ./log_collector tcp://*:5555
    
-2. **Start Agent:**
+2. **Start Agent Standard Mode (processes all existing logs and monitors for new ones):**
    ```bash
-    ./log_agent /var/log/my_app tcp://127.0.0.1:5555
+    ./log_agent /path/to/logs tcp://127.0.0.1:5555
+
+3. **Start Agent Fresh Mode (skips existing data, streams only new changes in real-time):**
+   ```bash
+    ./log_agent /path/to/logs tcp://127.0.0.1:5555
