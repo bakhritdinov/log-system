@@ -36,4 +36,4 @@ A high-performance, cross-platform log shipping solution written in C. It monito
 
 3. **Start Agent Fresh Mode (skips existing data, streams only new changes in real-time):**
    ```bash
-    ./log_agent /path/to/logs tcp://127.0.0.1:5555
+    ./log_agent /path/to/logs tcp://127.0.0.1:5555 --fresh
