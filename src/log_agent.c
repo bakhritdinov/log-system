@@ -146,15 +146,15 @@ int main(int argc, char* argv[]) {
     scan_recursive(watch_dir, pusher, &config);
 
 #if defined(__linux__)
-int fd = inotify_init();
-    if (fd<0) return 1;
-inotify_add_watch(fd, watch_dir, IN_MODIFY);
-char buffer[BUF_LEN];
+    int fd = inotify_init();
+    if (fd < 0) return 1;
+    inotify_add_watch(fd, watch_dir, IN_MODIFY);
+    char buffer[BUF_LEN];
     while (1) {
         ssize_t length = read(fd, buffer, BUF_LEN);
         if (length < 0) break;
-        for (char *ptr = buffer; ptr < buffer + length;) {
-            struct inotify_event *event = (struct inotify_event *)ptr;
+        for (char* ptr = buffer; ptr < buffer + length;) {
+            struct inotify_event* event = (struct inotify_event*)ptr;
             if ((event->mask & IN_MODIFY) && event->len) {
                 char full_path[1024];
                 snprintf(full_path, sizeof(full_path), "%s/%s", watch_dir, event->name);
@@ -163,17 +163,17 @@ char buffer[BUF_LEN];
             ptr += EVENT_SIZE + event->len;
         }
     }
-close(fd);
+    close(fd);
 #else
-while (1) {
+    while (1) {
         SLEEP(2000);
         scan_recursive(watch_dir, pusher, &config);
     }
 #endif
 
-cleanup_records();
-zmq_close(pusher);
-zmq_ctx_destroy(ctx);
+    cleanup_records();
+    zmq_close(pusher);
+    zmq_ctx_destroy(ctx);
     return 0;
 }
 #endif

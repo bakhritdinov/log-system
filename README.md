@@ -32,5 +32,4 @@ A high-performance, cross-platform log shipping solution written in C. It monito
    
 2. **Start Agent:**
    ```bash
-
     ./log_agent /var/log/my_app tcp://127.0.0.1:5555

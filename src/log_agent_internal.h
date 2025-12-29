@@ -6,7 +6,7 @@
 typedef struct {
     int tail_mode;
     int recursive;
-    const char *endpoint;
+    const char* endpoint;
 } AgentConfig;
 
 typedef struct {
